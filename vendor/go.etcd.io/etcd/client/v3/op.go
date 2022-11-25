@@ -36,6 +36,7 @@ type Op struct {
 
 	// for range
 	limit        int64
+	maxBytes     int64
 	sort         *SortOption
 	serializable bool
 	keysOnly     bool
@@ -153,6 +154,7 @@ func (op Op) toRangeRequest() *pb.RangeRequest {
 		Key:               op.key,
 		RangeEnd:          op.end,
 		Limit:             op.limit,
+		MaxBytes:          op.maxBytes,
 		Revision:          op.rev,
 		Serializable:      op.serializable,
 		KeysOnly:          op.keysOnly,
@@ -263,6 +265,8 @@ func OpDelete(key string, opts ...OpOption) Op {
 		panic("unexpected filter in delete")
 	case ret.createdNotify:
 		panic("unexpected createdNotify in delete")
+	case ret.maxBytes != 0:
+		panic("unexpected maxBytes in delete")
 	}
 	return ret
 }
@@ -292,6 +296,8 @@ func OpPut(key, val string, opts ...OpOption) Op {
 		panic("unexpected filter in put")
 	case ret.createdNotify:
 		panic("unexpected createdNotify in put")
+	case ret.maxBytes != 0:
+		panic("unexpected maxBytes in delete")
 	}
 	return ret
 }
@@ -319,6 +325,8 @@ func opWatch(key string, opts ...OpOption) Op {
 		panic("unexpected mod revision filter in watch")
 	case ret.minCreateRev != 0, ret.maxCreateRev != 0:
 		panic("unexpected create revision filter in watch")
+	case ret.maxBytes != 0:
+		panic("unexpected maxBytes in delete")
 	}
 	return ret
 }
@@ -340,6 +348,10 @@ func WithLease(leaseID LeaseID) OpOption {
 // WithLimit limits the number of results to return from 'Get' request.
 // If WithLimit is given a 0 limit, it is treated as no limit.
 func WithLimit(n int64) OpOption { return func(op *Op) { op.limit = n } }
+
+// WithMaxBytes limits the size in bytes of results to return from 'Get' request.
+// If WithMaxBytes is given a 0 limit, it is treated as no limit.
+func WithMaxBytes(n int64) OpOption { return func(op *Op) { op.maxBytes = n } }
 
 // WithRev specifies the store revision for 'Get' request.
 // Or the start revision of 'Watch' request.
@@ -389,12 +401,12 @@ func getPrefix(key []byte) []byte {
 // can return 'foo1', 'foo2', and so on.
 func WithPrefix() OpOption {
 	return func(op *Op) {
+		op.isOptsWithPrefix = true
 		if len(op.key) == 0 {
 			op.key, op.end = []byte{0}, []byte{0}
 			return
 		}
 		op.end = getPrefix(op.key)
-		op.isOptsWithPrefix = true
 	}
 }
 
@@ -580,4 +592,20 @@ func IsOptsWithFromKey(opts []OpOption) bool {
 	}
 
 	return ret.isOptsWithFromKey
+}
+
+func (op Op) IsSortOptionValid() bool {
+	if op.sort != nil {
+		sortOrder := int32(op.sort.Order)
+		sortTarget := int32(op.sort.Target)
+
+		if _, ok := pb.RangeRequest_SortOrder_name[sortOrder]; !ok {
+			return false
+		}
+
+		if _, ok := pb.RangeRequest_SortTarget_name[sortTarget]; !ok {
+			return false
+		}
+	}
+	return true
 }
