@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/google/btree"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,7 +31,7 @@ type btreeIndexer interface {
 	cache.Store
 	ByIndex(indexName, indexValue string) ([]interface{}, error)
 	Clone() btreeIndexer
-	LimitPrefixRead(limit int64, prefixKey, continueKey string) ([]interface{}, bool)
+	LimitPrefixRead(limit, maxBytes int64, prefixKey, continueKey string) ([]interface{}, bool)
 }
 
 type btreeStore struct {
@@ -277,39 +278,42 @@ func (t *btreeStore) deleteKeyFromIndexLocked(key, value string, index cache.Ind
 	}
 }
 
-func (t *btreeStore) LimitPrefixRead(limit int64, prefixKey, continueKey string) ([]interface{}, bool) {
+func (t *btreeStore) LimitPrefixRead(limit, maxBytes int64, prefixKey, continueKey string) ([]interface{}, bool) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	if limit < 0 {
+	if limit < 0 && maxBytes < 0 {
 		return nil, false
 	}
 
 	if len(continueKey) > 0 {
-		return t.limitPrefixReadLocked(limit, continueKey, prefixKey)
+		return t.limitPrefixReadLocked(limit, maxBytes, continueKey, prefixKey)
 	}
 
-	return t.limitPrefixReadLocked(limit, prefixKey, prefixKey)
+	return t.limitPrefixReadLocked(limit, maxBytes, prefixKey, prefixKey)
 }
 
-func (t *btreeStore) limitPrefixReadLocked(limit int64, pivotKey, prefixKey string) ([]interface{}, bool) {
+func (t *btreeStore) limitPrefixReadLocked(limit, maxBytes int64, pivotKey, prefixKey string) ([]interface{}, bool) {
 	if limit < 0 {
 		return nil, false
 	}
 	var result []interface{}
 	var elementsRetrieved int64
 	var hasMore bool
+	var totalSize int64
 
 	t.tree.AscendGreaterOrEqual(&storeElement{Key: pivotKey}, func(i btree.Item) bool {
 		elementKey := i.(*storeElement).Key
 		if !strings.HasPrefix(elementKey, prefixKey) {
 			return false
 		}
-		if limit == 0 {
+		if limit == 0 && maxBytes == 0 {
 			result = append(result, i.(interface{}))
 			return true
 		}
-		if elementsRetrieved-1 == limit {
+		a, _ := meta.Accessor(i.(*storeElement).Object)
+		s := a.GetResourceSize()
+		if elementsRetrieved-1 == limit || totalSize+s > maxBytes {
 			hasMore = true
 			return false
 		}
@@ -317,6 +321,7 @@ func (t *btreeStore) limitPrefixReadLocked(limit int64, pivotKey, prefixKey stri
 			result = append(result, i.(interface{}))
 		}
 		elementsRetrieved++
+		totalSize += s
 		return true
 	})
 

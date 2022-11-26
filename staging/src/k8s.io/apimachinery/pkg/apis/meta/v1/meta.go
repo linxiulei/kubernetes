@@ -43,6 +43,8 @@ type Object interface {
 	SetResourceVersion(version string)
 	GetGeneration() int64
 	SetGeneration(generation int64)
+	GetResourceSize() int64
+	SetResourceSize(size int64)
 	GetSelfLink() string
 	SetSelfLink(selfLink string)
 	GetCreationTimestamp() Time
@@ -144,6 +146,8 @@ func (meta *ObjectMeta) GetResourceVersion() string          { return meta.Resou
 func (meta *ObjectMeta) SetResourceVersion(version string)   { meta.ResourceVersion = version }
 func (meta *ObjectMeta) GetGeneration() int64                { return meta.Generation }
 func (meta *ObjectMeta) SetGeneration(generation int64)      { meta.Generation = generation }
+func (meta *ObjectMeta) GetResourceSize() int64              { return meta.ResourceSize }
+func (meta *ObjectMeta) SetResourceSize(size int64)          { meta.ResourceSize = size }
 func (meta *ObjectMeta) GetSelfLink() string                 { return meta.SelfLink }
 func (meta *ObjectMeta) SetSelfLink(selfLink string)         { meta.SelfLink = selfLink }
 func (meta *ObjectMeta) GetCreationTimestamp() Time          { return meta.CreationTimestamp }

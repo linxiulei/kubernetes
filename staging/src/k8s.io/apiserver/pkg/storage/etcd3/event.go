@@ -18,6 +18,7 @@ package etcd3
 
 import (
 	"fmt"
+
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -30,6 +31,7 @@ type event struct {
 	isDeleted        bool
 	isCreated        bool
 	isProgressNotify bool
+	size             int64
 }
 
 // parseKV converts a KeyValue retrieved from an initial sync() listing to a synthetic isCreated event.
@@ -41,6 +43,7 @@ func parseKV(kv *mvccpb.KeyValue) *event {
 		rev:       kv.ModRevision,
 		isDeleted: false,
 		isCreated: true,
+		size:      int64(kv.Size()),
 	}
 }
 
@@ -56,6 +59,7 @@ func parseEvent(e *clientv3.Event) (*event, error) {
 		rev:       e.Kv.ModRevision,
 		isDeleted: e.Type == clientv3.EventTypeDelete,
 		isCreated: e.IsCreate(),
+		size:      int64(e.Kv.Size()),
 	}
 	if e.PrevKv != nil {
 		ret.prevValue = e.PrevKv.Value

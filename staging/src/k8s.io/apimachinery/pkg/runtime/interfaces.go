@@ -308,6 +308,10 @@ type ResourceVersioner interface {
 	ResourceVersion(obj Object) (string, error)
 }
 
+type ResourceSizer interface {
+	ResourceSize(obj Object) (int64, error)
+}
+
 // Namer provides methods for retrieving name and namespace of an API object.
 type Namer interface {
 	// Name returns the name of a given object.

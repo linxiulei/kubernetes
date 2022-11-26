@@ -657,6 +657,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 		numReturn := v.Len()
 		metrics.RecordStorageListMetrics(s.groupResourceString, numFetched, numEvald, numReturn)
 	}()
+	var totalSize int64
 	for {
 		startTime := time.Now()
 		getResp, err = s.client.KV.Get(ctx, key, options...)
@@ -688,7 +689,8 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 
 		// take items from the response until the bucket is full, filtering as we go
 		for i, kv := range getResp.Kvs {
-			if paging && int64(v.Len()) >= pred.Limit {
+			totalSize += int64(kv.Size())
+			if paging && (int64(v.Len()) >= pred.Limit || (pred.MaxBytes > 0 && totalSize >= pred.MaxBytes)) {
 				hasMore = true
 				break
 			}
@@ -718,7 +720,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 			break
 		}
 		// we're paging but we have filled our bucket
-		if int64(v.Len()) >= pred.Limit {
+		if int64(v.Len()) >= pred.Limit || (pred.MaxBytes > 0 && totalSize >= pred.MaxBytes) {
 			break
 		}
 
@@ -730,6 +732,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 				limit = maxLimit
 			}
 			*limitOption = clientv3.WithLimit(limit)
+			*limitOption = clientv3.WithMaxBytes(pred.MaxBytes)
 		}
 		key = string(lastKey) + "\x00"
 		if withRev == 0 {
@@ -936,6 +939,12 @@ func appendListItem(v reflect.Value, data []byte, rev uint64, pred storage.Selec
 	if err != nil {
 		return err
 	}
+	a, err := meta.Accessor(obj)
+	if err != nil {
+		klog.Errorf("failed to update object version: %v", err)
+		return err
+	}
+	a.SetResourceSize(int64(len(data)))
 	// being unable to set the version does not prevent the object from being extracted
 	if err := versioner.UpdateObject(obj, rev); err != nil {
 		klog.Errorf("failed to update object version: %v", err)

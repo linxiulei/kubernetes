@@ -176,6 +176,8 @@ type ObjectMeta struct {
 	// +optional
 	Generation int64 `json:"generation,omitempty" protobuf:"varint,7,opt,name=generation"`
 
+	ResourceSize int64 `json:"resourceSize,omitempty" protobuf:"varint,7,opt,name=resourceSize"`
+
 	// CreationTimestamp is a timestamp representing the server time when this object was
 	// created. It is not guaranteed to be set in happens-before order across separate operations.
 	// Clients may not set this value. It is represented in RFC3339 form and is in UTC.

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/btree"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -555,6 +556,27 @@ func (w *watchCache) WaitUntilFreshAndList(resourceVersion uint64, key string, l
 	for _, matchValue := range matchValues {
 		if result, err := storeClone.ByIndex(matchValue.IndexName, matchValue.Value); err == nil {
 			limit := listOpts.Predicate.Limit
+			maxBytes := listOpts.Predicate.MaxBytes
+			if maxBytes > 0 {
+				var totalBytes int64
+				for i, obj := range result {
+					object, ok := obj.(runtime.Object)
+					if !ok {
+						return ListResp{}, 0, "", fmt.Errorf("obj does not implement runtime.Object interface: %v", obj)
+					}
+					accessor, err := meta.Accessor(object)
+					if err != nil {
+						return ListResp{}, 0, "", fmt.Errorf("obj does not implement runtime.Object interface: %v", obj)
+					}
+					totalBytes += accessor.GetResourceSize()
+					if totalBytes >= maxBytes {
+						if limit > int64(i) {
+							limit = int64(i)
+							break
+						}
+					}
+				}
+			}
 			if limit > 0 && limit < int64(len(result)) {
 				res.objs = result[:limit]
 				res.hasMore = true
@@ -565,7 +587,7 @@ func (w *watchCache) WaitUntilFreshAndList(resourceVersion uint64, key string, l
 		}
 	}
 
-	res.objs, res.hasMore = storeClone.LimitPrefixRead(listOpts.Predicate.Limit, key, continueKey)
+	res.objs, res.hasMore = storeClone.LimitPrefixRead(listOpts.Predicate.Limit, listOpts.Predicate.MaxBytes, key, continueKey)
 	return res, w.resourceVersion, "", nil
 }
 

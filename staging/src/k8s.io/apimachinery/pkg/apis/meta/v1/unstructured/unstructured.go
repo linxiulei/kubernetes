@@ -278,6 +278,22 @@ func (u *Unstructured) SetUID(uid types.UID) {
 	u.setNestedField(string(uid), "metadata", "uid")
 }
 
+func (u *Unstructured) GetResourceSize() int64 {
+	val, found, err := NestedInt64(u.Object, "metadata", "resourceSize")
+	if !found || err != nil {
+		return 0
+	}
+	return val
+}
+
+func (u *Unstructured) SetResourceSize(size int64) {
+	if size == 0 {
+		RemoveNestedField(u.Object, "metadata", "resourceSize")
+		return
+	}
+	u.setNestedField(size, "metadata", "resourceSize")
+}
+
 func (u *Unstructured) GetResourceVersion() string {
 	return getNestedString(u.Object, "metadata", "resourceVersion")
 }

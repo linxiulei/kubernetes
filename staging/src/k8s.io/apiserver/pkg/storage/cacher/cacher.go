@@ -665,6 +665,7 @@ func (c *Cacher) listItems(listRV uint64, key string, pred storage.SelectionPred
 
 // GetList implements storage.Interface
 func (c *Cacher) GetList(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
+	opts.Predicate.MaxBytes = 10 * 1024 * 1024
 	recursive := opts.Recursive
 	resourceVersion := opts.ResourceVersion
 	pred := opts.Predicate
@@ -1150,6 +1151,7 @@ func (lw *cacherListerWatcher) List(options metav1.ListOptions) (runtime.Object,
 		Label:    labels.Everything(),
 		Field:    fields.Everything(),
 		Limit:    options.Limit,
+		MaxBytes: 10 * 1024 * 1024,
 		Continue: options.Continue,
 	}
 

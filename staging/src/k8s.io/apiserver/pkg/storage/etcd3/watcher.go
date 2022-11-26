@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -390,6 +391,8 @@ func (wc *watchChan) transform(e *event) (res *watch.Event) {
 			}
 		}
 	}
+	accessor, _ := meta.Accessor(res.Object)
+	accessor.SetResourceSize(e.size)
 	return res
 }
 

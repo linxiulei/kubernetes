@@ -77,6 +77,7 @@ type SelectionPredicate struct {
 	IndexLabels         []string
 	IndexFields         []string
 	Limit               int64
+	MaxBytes            int64
 	Continue            string
 	AllowWatchBookmarks bool
 }

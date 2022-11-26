@@ -296,6 +296,17 @@ func (o *cachingObject) SetResourceVersion(version string) {
 		func() { o.object.SetResourceVersion(version) },
 	)
 }
+func (o *cachingObject) GetResourceSize() int64 {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+	return o.object.GetResourceSize()
+}
+func (o *cachingObject) SetResourceSize(size int64) {
+	o.conditionalSet(
+		func() bool { return o.object.GetResourceSize() == size },
+		func() { o.object.SetResourceSize(size) },
+	)
+}
 func (o *cachingObject) GetGeneration() int64 {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
