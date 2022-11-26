@@ -549,7 +549,8 @@ func (w *watchCache) WaitUntilFreshAndList(resourceVersion uint64, key string, l
 		storeClone = w.continueCache.cache[resourceVersion]
 	} else {
 		storeClone = w.store.Clone()
-		w.continueCache.cache[resourceVersion] = storeClone
+		//w.continueCache.cache[resourceVersion] = storeClone
+		w.continueCache.Add(resourceVersion, storeClone)
 	}
 
 	res := ListResp{objs: []interface{}{}}

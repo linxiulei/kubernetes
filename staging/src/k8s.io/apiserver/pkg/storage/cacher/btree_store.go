@@ -367,6 +367,7 @@ var _ btreeIndexer = (*btreeStore)(nil)
 // created is removed from the watchCache.
 type continueCache struct {
 	cache map[uint64]btreeIndexer
+	lock  sync.RWMutex
 }
 
 func newContinueCache() *continueCache {
@@ -377,4 +378,9 @@ func (c *continueCache) cleanup(rv uint64) {
 	if _, ok := c.cache[rv]; ok {
 		delete(c.cache, rv)
 	}
+}
+func (c *continueCache) Add(resourceVersion uint64, indexer btreeIndexer) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.cache[resourceVersion] = indexer
 }
