@@ -77,8 +77,9 @@ type Reactor struct {
 
 func testTryAcquireOrRenew(t *testing.T, objectType string) {
 	clock := clock.RealClock{}
-	future := clock.Now().Add(1000 * time.Hour)
-	past := clock.Now().Add(-1000 * time.Hour)
+	now := clock.Now()
+	future := now.Add(1000 * time.Hour)
+	past := now.Add(-1000 * time.Hour)
 
 	tests := []struct {
 		name           string
@@ -137,13 +138,13 @@ func testTryAcquireOrRenew(t *testing.T, objectType string) {
 				{
 					verb: "get",
 					reaction: func(action fakeclient.Action) (handled bool, ret runtime.Object, err error) {
-						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", LeaseDurationSeconds: 3}), nil
+						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", LeaseDurationSeconds: 3, RenewTime: metav1.NewTime(now)}), nil
 					},
 				},
 				{
 					verb: "get",
 					reaction: func(action fakeclient.Action) (handled bool, ret runtime.Object, err error) {
-						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", LeaseDurationSeconds: 3}), nil
+						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", LeaseDurationSeconds: 3, RenewTime: metav1.NewTime(now)}), nil
 					},
 				},
 				{
@@ -154,6 +155,27 @@ func testTryAcquireOrRenew(t *testing.T, objectType string) {
 				},
 			},
 			retryAfter:       3 * time.Second,
+			expectSuccess:    true,
+			transitionLeader: true,
+			outHolder:        "baz",
+		},
+		{
+			name: "acquire from led, expired object",
+			reactors: []Reactor{
+				{
+					verb: "get",
+					reaction: func(action fakeclient.Action) (handled bool, ret runtime.Object, err error) {
+						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", LeaseDurationSeconds: 3, RenewTime: metav1.NewTime(past)}), nil
+					},
+				},
+				{
+					verb: "update",
+					reaction: func(action fakeclient.Action) (handled bool, ret runtime.Object, err error) {
+						return true, action.(fakeclient.CreateAction).GetObject(), nil
+					},
+				},
+			},
+			observedTime:     now,
 			expectSuccess:    true,
 			transitionLeader: true,
 			outHolder:        "baz",
@@ -230,7 +252,7 @@ func testTryAcquireOrRenew(t *testing.T, objectType string) {
 				{
 					verb: "get",
 					reaction: func(action fakeclient.Action) (handled bool, ret runtime.Object, err error) {
-						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing"}), nil
+						return true, createLockObject(t, objectType, action.GetNamespace(), action.(fakeclient.GetAction).GetName(), &rl.LeaderElectionRecord{HolderIdentity: "bing", RenewTime: metav1.NewTime(future)}), nil
 					},
 				},
 			},

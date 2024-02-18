@@ -415,7 +415,11 @@ func (le *LeaderElector) Check(maxTolerableExpiredLease time.Duration) error {
 }
 
 func (le *LeaderElector) isLeaseValid(now time.Time) bool {
-	return le.observedTime.Add(time.Second * time.Duration(le.getObservedRecord().LeaseDurationSeconds)).After(now)
+	return isLeaseValid(now, le.getObservedRecord())
+}
+
+func isLeaseValid(now time.Time, record rl.LeaderElectionRecord) bool {
+	return record.RenewTime.Add(time.Second * time.Duration(record.LeaseDurationSeconds)).After(now)
 }
 
 // setObservedRecord will set a new observedRecord and update observedTime to the current time.
